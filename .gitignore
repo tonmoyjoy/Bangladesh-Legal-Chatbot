@@ -1,0 +1,24 @@
+# Environment
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Vector store (rebuild with ingest.py)
+vectorstore/
+
+# PDF data (don't commit copyrighted content)
+data/*.pdf
+
+# HuggingFace model cache
+.cache/
+sentence_transformers/
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
