@@ -32,7 +32,7 @@ PDFs (data/)
 User Question  →  similarity search (Top-K chunks)
     │
     ▼
-[Groq API + LLaMA 3 70B]  →  context-grounded answer
+[Groq API + supported Groq chat model]  →  context-grounded answer
     │
     ▼
 [Streamlit UI]  →  streamed response + source citations
@@ -48,7 +48,7 @@ User Question  →  similarity search (Top-K chunks)
 | Text Chunking | LangChain `RecursiveCharacterTextSplitter` | Free |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Free, local |
 | Vector DB | ChromaDB (persistent, local) | Free |
-| LLM | Groq API + LLaMA 3 70B | Free tier |
+| LLM | Groq API + supported Groq chat model | Free tier |
 | Orchestration | LangChain LCEL | Free |
 | Frontend | Streamlit | Free |
 
@@ -103,7 +103,7 @@ cp .env.example .env
 Edit `.env`:
 ```env
 GROQ_API_KEY=gsk_your_key_here      # https://console.groq.com (free)
-GROQ_MODEL=llama3-70b-8192
+GROQ_MODEL=llama-3.1-8b-instant
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 CHROMA_DIR=./vectorstore/chroma_db
 PDF_DIR=./data
@@ -176,7 +176,7 @@ Open your browser at **http://localhost:8501** 🎉
 | `CHUNK_SIZE` | 800 | Larger = more context per chunk, slower embed |
 | `CHUNK_OVERLAP` | 150 | Higher = fewer missed cross-chunk facts |
 | `TOP_K` | 5 | More retrieved chunks = broader context |
-| `GROQ_MODEL` | `llama3-70b-8192` | 70B = smarter but slower; 8B = faster |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` | 8B = faster; `llama-3.3-70b-versatile` is a stronger alternative |
 
 ---
 

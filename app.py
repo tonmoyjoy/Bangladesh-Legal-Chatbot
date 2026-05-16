@@ -220,8 +220,8 @@ with st.sidebar:
 
     model_choice = st.selectbox(
         "Groq Model",
-        ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"],
-        index=0,
+        ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "openai/gpt-oss-120b"],
+        index=0 if cfg.GROQ_MODEL not in ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "openai/gpt-oss-120b"] else ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "openai/gpt-oss-120b"].index(cfg.GROQ_MODEL),
     )
     cfg.GROQ_MODEL = model_choice
 

@@ -12,7 +12,7 @@ load_dotenv(Path(__file__).parent / ".env")
 class Config:
     # ── Groq / LLM ────────────────────────────────────────────────────────────
     GROQ_API_KEY: str   = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str     = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+    GROQ_MODEL: str     = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
     # ── Embeddings ────────────────────────────────────────────────────────────
     EMBEDDING_MODEL: str = os.getenv(

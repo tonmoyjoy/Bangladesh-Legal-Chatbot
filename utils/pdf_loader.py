@@ -6,6 +6,7 @@ Returns a list of LangChain Document objects with rich metadata.
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -22,6 +23,40 @@ try:
     _HAS_OCR = True
 except Exception:
     _HAS_OCR = False
+
+
+def _configure_tesseract() -> bool:
+    """Find a working tesseract.exe on Windows and attach it to pytesseract."""
+    if not _HAS_OCR:
+        return False
+
+    candidates = []
+
+    env_cmd = os.getenv("TESSERACT_CMD")
+    if env_cmd:
+        candidates.append(env_cmd)
+
+    path_cmd = shutil.which("tesseract")
+    if path_cmd:
+        candidates.append(path_cmd)
+
+    candidates.extend(
+        [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            pytesseract.pytesseract.tesseract_cmd = candidate
+            return True
+
+    return False
+
+
+_TESSERACT_READY = _configure_tesseract()
+_OCR_WARNING_SHOWN = False
 
 
 def _clean_text(text: str) -> str:
@@ -54,6 +89,7 @@ def load_pdfs(pdf_dir: str) -> List[Document]:
         )
 
     all_docs: List[Document] = []
+    global _OCR_WARNING_SHOWN
 
     for pdf_path in tqdm(pdf_files, desc="📄 Parsing PDFs"):
         try:
@@ -67,15 +103,23 @@ def load_pdfs(pdf_dir: str) -> List[Document]:
 
                 # If page has very little extracted text, try OCR (optional)
                 if len(cleaned) < 30:
-                    if _HAS_OCR:
+                    if _TESSERACT_READY:
                         try:
                             pix = page.get_pixmap(dpi=300)
                             img_bytes = pix.tobytes("png")
-                            img = Image.open(BytesIO(img_bytes))
-                            ocr_text = pytesseract.image_to_string(img)
+                            with Image.open(BytesIO(img_bytes)) as img:
+                                ocr_image = img.convert("L")
+                                ocr_image.load()
+                            ocr_text = pytesseract.image_to_string(ocr_image)
                             cleaned = _clean_text(ocr_text)
                         except Exception as exc:
                             print(f"⚠️  OCR failed for {filename} page {page_num}: {exc}")
+                    elif _HAS_OCR and not _OCR_WARNING_SHOWN:
+                        print(
+                            "⚠️  OCR skipped because tesseract.exe was not found. "
+                            "Install Tesseract and restart VS Code, then run ingest.py again."
+                        )
+                        _OCR_WARNING_SHOWN = True
 
                 if len(cleaned) < 30:                     # still near-empty → skip
                     continue
