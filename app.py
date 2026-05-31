@@ -191,10 +191,9 @@ with st.sidebar:
 
     groq_key = st.text_input(
         "Groq API Key",
-        value=cfg.GROQ_API_KEY,
         type="password",
         placeholder="gsk_...",
-        help="Get a free key at https://console.groq.com",
+        help="Optional. Leave blank to use the key configured in Streamlit Cloud Secrets.",
     )
     if groq_key:
         cfg.GROQ_API_KEY = groq_key
