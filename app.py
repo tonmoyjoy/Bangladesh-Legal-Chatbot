@@ -189,14 +189,26 @@ if "chain_ready" not in st.session_state:
 with st.sidebar:
     st.markdown("### ⚙️ Configuration")
 
-    groq_key = st.text_input(
-        "Groq API Key",
-        type="password",
-        placeholder="gsk_...",
-        help="Optional. Leave blank to use the key configured in Streamlit Cloud Secrets.",
-    )
-    if groq_key:
-        cfg.GROQ_API_KEY = groq_key
+    if cfg.GROQ_API_KEY:
+        st.success("✅ Using server API key from Streamlit Secrets")
+        with st.expander("Use your own key for this session", expanded=False):
+            groq_key = st.text_input(
+                "Custom Groq API Key",
+                type="password",
+                placeholder="gsk_...",
+                help="Optional override for your current session only.",
+            )
+            if groq_key:
+                cfg.GROQ_API_KEY = groq_key
+    else:
+        groq_key = st.text_input(
+            "Groq API Key",
+            type="password",
+            placeholder="gsk_...",
+            help="Paste your key if no server key is configured.",
+        )
+        if groq_key:
+            cfg.GROQ_API_KEY = groq_key
 
     st.markdown("---")
     st.markdown("### 📂 Vector Store Status")
