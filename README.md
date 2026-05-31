@@ -158,6 +158,32 @@ Open your browser at **http://localhost:8501** 🎉
 
 ---
 
+## 🌐 Deploy to Streamlit Cloud
+
+If you want the app to run on Streamlit Cloud with a prebuilt vector store, do this before deploying:
+
+1. Run `python ingest.py` locally so `vectorstore/chroma_db/` is populated.
+2. Make sure `vectorstore/chroma_db/` is committed to the repository.
+3. Create a Streamlit Cloud app that points to `app.py`.
+4. Add `GROQ_API_KEY` in Streamlit Cloud Secrets instead of using a local `.env` file.
+
+Example `secrets.toml`:
+
+```toml
+GROQ_API_KEY = "gsk_your_key_here"
+GROQ_MODEL = "llama-3.1-8b-instant"
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+CHROMA_DIR = "./vectorstore/chroma_db"
+PDF_DIR = "./data"
+CHUNK_SIZE = "800"
+CHUNK_OVERLAP = "150"
+TOP_K = "5"
+```
+
+If the vector store is present in the deployment, the app will load it directly and will not ask you to rerun ingestion on Streamlit Cloud.
+
+---
+
 ## 💬 Example Questions
 
 - *"What are the fundamental rights guaranteed under the Bangladesh Constitution?"*

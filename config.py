@@ -8,30 +8,59 @@ from dotenv import load_dotenv
 # Load .env from the project root
 load_dotenv(Path(__file__).parent / ".env")
 
+try:
+    import streamlit as st
+except Exception:
+    st = None
+
+
+def _get_setting(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+
+    if st is not None:
+        try:
+            secret_value = st.secrets.get(name, default)
+            if secret_value is not None:
+                return str(secret_value)
+        except Exception:
+            pass
+
+    return default
+
+
+def _get_int_setting(name: str, default: int) -> int:
+    raw_value = _get_setting(name, str(default))
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return default
+
 
 class Config:
     # ── Groq / LLM ────────────────────────────────────────────────────────────
-    GROQ_API_KEY: str   = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str     = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    GROQ_API_KEY: str   = _get_setting("GROQ_API_KEY", "")
+    GROQ_MODEL: str     = _get_setting("GROQ_MODEL", "llama-3.1-8b-instant")
 
     # ── Embeddings ────────────────────────────────────────────────────────────
-    EMBEDDING_MODEL: str = os.getenv(
+    EMBEDDING_MODEL: str = _get_setting(
         "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
     )
 
     # ── Vector Store ──────────────────────────────────────────────────────────
-    CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./vectorstore/chroma_db")
+    CHROMA_DIR: str = _get_setting("CHROMA_DIR", "./vectorstore/chroma_db")
     COLLECTION_NAME: str = "bangladesh_law"
 
     # ── PDF Directory ─────────────────────────────────────────────────────────
-    PDF_DIR: str = os.getenv("PDF_DIR", "./data")
+    PDF_DIR: str = _get_setting("PDF_DIR", "./data")
 
     # ── Chunking ──────────────────────────────────────────────────────────────
-    CHUNK_SIZE: int     = int(os.getenv("CHUNK_SIZE", 800))
-    CHUNK_OVERLAP: int  = int(os.getenv("CHUNK_OVERLAP", 150))
+    CHUNK_SIZE: int     = _get_int_setting("CHUNK_SIZE", 800)
+    CHUNK_OVERLAP: int  = _get_int_setting("CHUNK_OVERLAP", 150)
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
-    TOP_K: int = int(os.getenv("TOP_K", 5))
+    TOP_K: int = _get_int_setting("TOP_K", 5)
 
     # ── RAG Prompt ────────────────────────────────────────────────────────────
     SYSTEM_PROMPT: str = """You are an expert legal assistant specialising in the laws of Bangladesh. \

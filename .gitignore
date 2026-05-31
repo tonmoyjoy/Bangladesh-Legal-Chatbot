@@ -6,8 +6,11 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Vector store (rebuild with ingest.py)
-vectorstore/
+# Vector store
+# Keep the built ChromaDB files in version control so Streamlit Cloud can load them.
+vectorstore/*
+!vectorstore/chroma_db/
+!vectorstore/chroma_db/**
 
 # PDF data (don't commit copyrighted content)
 data/*.pdf

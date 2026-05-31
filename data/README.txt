@@ -19,3 +19,4 @@ Recommended sources (all free / open access):
 
 Save the PDFs here, then run:
     python ingest.py
+
