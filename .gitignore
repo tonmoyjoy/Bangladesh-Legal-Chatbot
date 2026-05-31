@@ -22,6 +22,8 @@ sentence_transformers/
 
 # Streamlit
 .streamlit/
+*Streamlit.html
+*Streamlit_files/
 
 # OS
 .DS_Store
