@@ -70,11 +70,45 @@ def _sanitize(meta: dict[str, Any]) -> dict[str, str | int | float | bool]:
     return clean
 
 
-def _check_compatible(collection: Any, model: str, name: str) -> None:
+#: Models the pre-v2 app used. Its collections carry no ``embedding_model``
+#: metadata, so they are adopted only when one of these is configured *and*
+#: the stored vectors have the same dimension as the embedder's output.
+LEGACY_MODELS = frozenset({"sentence-transformers/all-MiniLM-L6-v2", "all-MiniLM-L6-v2"})
+
+
+def _stored_dimension(collection: Any) -> int | None:
+    try:
+        sample = collection.get(limit=1, include=["embeddings"])
+        embeddings = sample.get("embeddings")
+        if embeddings is None or len(embeddings) == 0:
+            return None
+        return len(embeddings[0])
+    except Exception as exc:  # pragma: no cover - backend specific
+        logger.debug("Could not read stored embedding dimension: %s", exc)
+        return None
+
+
+def _legacy_compatible(collection: Any, model: str, embedder: Embedder | None) -> bool:
+    if model not in LEGACY_MODELS or embedder is None:
+        return False
+    stored = _stored_dimension(collection)
+    if stored is None:
+        return False
+    try:
+        return stored == len(embedder.embed_query("dimension probe"))
+    except Exception as exc:  # pragma: no cover - model load failure surfaces elsewhere
+        logger.debug("Embedding probe failed: %s", exc)
+        return False
+
+
+def _check_compatible(collection: Any, model: str, name: str, embedder: Embedder | None = None) -> None:
     built_with = str((collection.metadata or {}).get("embedding_model", ""))
     if built_with == model:
         return
     if not built_with and collection.count() == 0:
+        return
+    if not built_with and _legacy_compatible(collection, model, embedder):
+        logger.warning("Opening legacy index '%s' (no model metadata) with %s", name, model)
         return
     origin = f"'{built_with}'" if built_with else "an older version of this app"
     raise IncompatibleIndexError(
@@ -98,7 +132,7 @@ class VectorStore:
             raise IndexNotFoundError(
                 f"Vector index '{name}' not found. Run `python ingest.py` first."
             ) from exc
-        _check_compatible(collection, embedder.name, name)
+        _check_compatible(collection, embedder.name, name, embedder)
         if collection.count() == 0:
             raise IndexNotFoundError(f"Vector index '{name}' is empty. Run `python ingest.py`.")
         return cls(collection, embedder)
@@ -117,7 +151,7 @@ class VectorStore:
             embedding_function=None,
             metadata={"hnsw:space": "cosine", "embedding_model": embedder.name},
         )
-        _check_compatible(collection, embedder.name, name)
+        _check_compatible(collection, embedder.name, name, embedder)
         return cls(collection, embedder)
 
     # ── writes ──────────────────────────────────────────────────────────

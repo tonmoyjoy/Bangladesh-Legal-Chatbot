@@ -142,6 +142,20 @@ def test_legacy_index_without_model_metadata_is_rejected(settings, fake_embedder
     assert fresh.count() == 0
 
 
+def test_legacy_index_opens_with_legacy_model_and_matching_dimension(settings):
+    client = make_client(settings)
+    legacy_embedder = FakeEmbedder(name="sentence-transformers/all-MiniLM-L6-v2")
+    dim = len(legacy_embedder.embed_query("probe"))
+    legacy = client.get_or_create_collection(name="law", embedding_function=None)
+    legacy.add(ids=["x"], documents=["old chunk"], embeddings=[[0.1] * dim])
+    assert VectorStore.open(client, "law", legacy_embedder).count() == 1
+
+    wrong_dim = client.get_or_create_collection(name="law2", embedding_function=None)
+    wrong_dim.add(ids=["x"], documents=["old chunk"], embeddings=[[0.1] * (dim + 1)])
+    with pytest.raises(IncompatibleIndexError, match="older version"):
+        VectorStore.open(client, "law2", legacy_embedder)
+
+
 # ── corpus integrity: the mislabelled "Muslim Family Law ordinance.pdf" ─────
 WRONG_TITLE = "The Engineering and Technological University Ordinance, 1961"
 
