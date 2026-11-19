@@ -235,9 +235,9 @@ Never commit the vector index or PDFs to git.
 To migrate a legacy index:
 
 1. In Streamlit App secrets, temporarily set
-   `EMBEDDING_BACKEND=sentence-transformers` and
+   `EMBEDDING_BACKEND=fastembed` and
    `EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2`.
-   Install `requirements-torch.txt` in the deployment if that backend is not already available.
+   FastEmbed supports this legacy model without installing PyTorch.
 2. After the existing index opens successfully, build a replacement with
    `EMBEDDING_BACKEND=fastembed`,
    `EMBEDDING_MODEL=intfloat/multilingual-e5-small`, and

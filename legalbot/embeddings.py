@@ -101,5 +101,12 @@ class SentenceTransformerEmbedder:
 def build_embedder(backend: str, model_name: str, cache_dir: str | None = None) -> Embedder:
     logger.info("Loading embedding model %s (%s)", model_name, backend)
     if backend == "sentence-transformers":
-        return SentenceTransformerEmbedder(model_name, cache_dir)
+        try:
+            return SentenceTransformerEmbedder(model_name, cache_dir)
+        except ImportError as exc:
+            logger.warning(
+                "sentence-transformers backend unavailable (%s); falling back to FastEmbed",
+                exc,
+            )
+            return FastEmbedEmbedder(model_name, cache_dir)
     return FastEmbedEmbedder(model_name, cache_dir)

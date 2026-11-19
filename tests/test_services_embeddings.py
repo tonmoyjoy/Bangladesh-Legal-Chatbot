@@ -55,6 +55,15 @@ def test_build_embedder_dispatch(monkeypatch):
     assert build_embedder("sentence-transformers", "m") == ("st", "m")
 
 
+def test_build_embedder_falls_back_from_missing_sentence_transformers(monkeypatch):
+    def missing_backend(name, cache):
+        raise ImportError("sentence-transformers is missing")
+
+    monkeypatch.setattr(embeddings, "SentenceTransformerEmbedder", missing_backend)
+    monkeypatch.setattr(embeddings, "FastEmbedEmbedder", lambda name, cache: ("fast", name))
+    assert build_embedder("sentence-transformers", "m") == ("fast", "m")
+
+
 def test_build_backend_end_to_end(monkeypatch, tmp_path, all_chunks):
     settings = load_settings(
         env={"CHROMA_DIR": str(tmp_path / "db"), "EMBEDDING_MODEL": "fake-embedder", "RERANKER_MODEL": "r"}
