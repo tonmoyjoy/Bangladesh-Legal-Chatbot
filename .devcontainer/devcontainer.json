@@ -1,33 +1,17 @@
 {
-  "name": "Python 3",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
-  "customizations": {
-    "codespaces": {
-      "openFiles": [
-        "README.md",
-        "app.py"
-      ]
-    },
-    "vscode": {
-      "settings": {},
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
-      ]
-    }
-  },
-  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
+  "name": "Bangladesh Legal Chatbot",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {},
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-ben && pip install --user -r requirements.txt -r requirements-dev.txt",
   "postAttachCommand": {
-    "server": "streamlit run app.py --server.enableCORS false --server.enableXsrfProtection false"
+    "server": "streamlit run app.py"
   },
-  "portsAttributes": {
-    "8501": {
-      "label": "Application",
-      "onAutoForward": "openPreview"
+  "customizations": {
+    "codespaces": { "openFiles": ["README.md", "app.py"] },
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-python.vscode-pylance", "charliermarsh.ruff"]
     }
   },
-  "forwardPorts": [
-    8501
-  ]
+  "forwardPorts": [8501],
+  "portsAttributes": { "8501": { "label": "Application", "onAutoForward": "openPreview" } }
 }

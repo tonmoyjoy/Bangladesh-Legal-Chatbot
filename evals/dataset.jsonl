@@ -1,0 +1,31 @@
+{"id": "pc-302", "question": "What is the punishment for murder under the Penal Code?", "act": "penal", "sections": ["302"], "keywords": ["death", "imprisonment for life"]}
+{"id": "pc-378", "question": "How does the Penal Code define theft?", "act": "penal", "sections": ["378"], "keywords": ["dishonestly", "movable property"]}
+{"id": "pc-379", "question": "What is the punishment for theft?", "act": "penal", "sections": ["379"], "keywords": ["three years"]}
+{"id": "pc-299", "question": "What is culpable homicide?", "act": "penal", "sections": ["299"], "keywords": ["death"]}
+{"id": "pc-420", "question": "What is the punishment for cheating and dishonestly inducing delivery of property?", "act": "penal", "sections": ["420"], "keywords": ["seven years"]}
+{"id": "pc-500", "question": "What is the punishment for defamation?", "act": "penal", "sections": ["500"], "keywords": ["two years"]}
+{"id": "pc-34", "question": "What happens when several persons commit a criminal act in furtherance of a common intention?", "act": "penal", "sections": ["34"], "keywords": ["liable"]}
+{"id": "pc-100", "question": "When does the right of private defence of the body extend to causing death?", "act": "penal", "sections": ["100"], "keywords": ["death"]}
+{"id": "pc-494", "question": "What is the offence of marrying again during the lifetime of a husband or wife?", "act": "penal", "sections": ["494"], "keywords": ["seven years"]}
+{"id": "pc-302-bn", "question": "দণ্ডবিধির ৩০২ ধারায় খুনের শাস্তি কী?", "act": "penal", "sections": ["302"], "keywords": ["মৃত্যু"]}
+{"id": "crpc-54", "question": "When may a police officer arrest without a warrant?", "act": "criminal procedure", "sections": ["54"], "keywords": ["warrant"]}
+{"id": "crpc-61", "question": "How long can the police detain an arrested person without a magistrate's order?", "act": "criminal procedure", "sections": ["61"], "keywords": ["twenty-four hours"]}
+{"id": "crpc-167", "question": "What is the procedure when an investigation cannot be completed within twenty-four hours (remand)?", "act": "criminal procedure", "sections": ["167"], "keywords": ["fifteen days"]}
+{"id": "crpc-164", "question": "Who can record a confession and how?", "act": "criminal procedure", "sections": ["164"], "keywords": ["Magistrate"]}
+{"id": "crpc-496", "question": "Is bail a right in bailable offences?", "act": "criminal procedure", "sections": ["496"], "keywords": ["bail"]}
+{"id": "crpc-497", "question": "When can bail be granted for a non-bailable offence?", "act": "criminal procedure", "sections": ["497"], "keywords": ["reasonable grounds"]}
+{"id": "crpc-498", "question": "Can the High Court Division or a Court of Session grant bail in any case?", "act": "criminal procedure", "sections": ["498"], "keywords": ["bail"]}
+{"id": "crpc-154", "question": "How is information about a cognizable offence recorded by the police?", "act": "criminal procedure", "sections": ["154"], "keywords": ["officer in charge"]}
+{"id": "const-27", "question": "What does the Constitution say about equality before law?", "act": "constitution", "sections": ["27"], "keywords": ["equal protection"]}
+{"id": "const-33", "question": "What safeguards does the Constitution give a person who is arrested?", "act": "constitution", "sections": ["33"], "keywords": ["twenty-four hours"]}
+{"id": "const-32", "question": "Which article protects the right to life and personal liberty?", "act": "constitution", "sections": ["32"], "keywords": ["life"]}
+{"id": "const-39", "question": "Is freedom of thought, conscience and speech guaranteed?", "act": "constitution", "sections": ["39"], "keywords": ["speech"]}
+{"id": "const-102", "question": "What powers does the High Court Division have to enforce fundamental rights?", "act": "constitution", "sections": ["102"], "keywords": ["High Court Division"]}
+{"id": "const-27-bn", "question": "সংবিধানের ২৭ অনুচ্ছেদে কী বলা হয়েছে?", "act": "constitution", "sections": ["27"], "keywords": ["সমান"]}
+{"id": "mflo-6", "question": "Can a man contract another marriage while a marriage subsists without permission?", "act": "muslim family", "sections": ["6"], "keywords": ["Arbitration Council"]}
+{"id": "mflo-7", "question": "What is the procedure for talaq under the Muslim Family Laws Ordinance?", "act": "muslim family", "sections": ["7"], "keywords": ["Chairman", "ninety days"]}
+{"id": "mflo-9", "question": "What can a wife do if her husband fails to maintain her?", "act": "muslim family", "sections": ["9"], "keywords": ["Arbitration Council"]}
+{"id": "mflo-10", "question": "When is dower payable if the marriage contract does not specify?", "act": "muslim family", "sections": ["10"], "keywords": ["dower"]}
+{"id": "neg-tax", "question": "What is the capital gains tax rate in Bangladesh?", "expect_refusal": true}
+{"id": "neg-company", "question": "How do I register a private limited company in Bangladesh?", "expect_refusal": true}
+{"id": "neg-sport", "question": "Who won the 2022 FIFA World Cup?", "expect_refusal": true}

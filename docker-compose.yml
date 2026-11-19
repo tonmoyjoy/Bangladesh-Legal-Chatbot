@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    image: bd-legal-chatbot:latest
+    ports:
+      - "8501:8501"
+    env_file: .env
+    environment:
+      CHROMA_DIR: /app/vectorstore/chroma_db
+      PDF_DIR: /app/data
+      AUTO_INGEST: "true"
+    volumes:
+      - ./data:/app/data:ro          # your law PDFs (not baked into the image)
+      - index:/app/vectorstore       # persisted vector index
+    restart: unless-stopped
+
+volumes:
+  index:
