@@ -232,6 +232,18 @@ and `RERANKER_MODEL=` (empty). Build the index **locally** into
 and put the same settings in the app's *Secrets* (see `.streamlit/secrets.toml.example`).
 Never commit the vector index or PDFs to git.
 
+To migrate a legacy index:
+
+1. In Streamlit App secrets, temporarily set
+   `EMBEDDING_BACKEND=sentence-transformers` and
+   `EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2`.
+   Install `requirements-torch.txt` in the deployment if that backend is not already available.
+2. After the existing index opens successfully, build a replacement with
+   `EMBEDDING_BACKEND=fastembed`,
+   `EMBEDDING_MODEL=intfloat/multilingual-e5-small`, and
+   `python ingest.py --rebuild` using the same Chroma Cloud credentials.
+3. Change the app secrets to the FastEmbed settings and redeploy.
+
 ## 📁 Project structure
 
 ```
