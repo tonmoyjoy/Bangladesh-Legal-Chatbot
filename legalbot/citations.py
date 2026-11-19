@@ -9,6 +9,13 @@ from legalbot.prompts import REFUSAL_BN, REFUSAL_EN
 from legalbot.text import bn_to_ascii_digits
 
 _BRACKET = re.compile(r"\[\s*([0-9০-৯]{1,2}(?:\s*[,،]\s*[0-9০-৯]{1,2})*)\s*\]")
+# gpt-oss models often cite in their native style: 【1】, 【2†L1-L4】, 【3†source】.
+_LENTICULAR = re.compile(r"【\s*([0-9০-৯]{1,2})\s*(?:†[^】]*)?】")
+
+
+def normalise_citations(answer: str) -> str:
+    """Rewrite model-specific citation styles into plain ``[n]`` markers."""
+    return _LENTICULAR.sub(r"[\1]", answer)
 
 
 @dataclass
@@ -32,7 +39,7 @@ def validate_citations(answer: str, n_sources: int) -> CitationResult:
             return ""
         return "".join(f"[{n}]" for n in good)
 
-    text = _BRACKET.sub(fix, answer)
+    text = _BRACKET.sub(fix, normalise_citations(answer))
     text = re.sub(r"[ \t]+([.,;:।])", r"\1", text)  # tidy space left by removed markers
     text = re.sub(r"[ \t]{2,}", " ", text)
     return CitationResult(text=text.strip(), cited=sorted(cited), invalid=sorted(invalid))

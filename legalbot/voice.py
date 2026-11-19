@@ -110,11 +110,95 @@ def _normalise(text: str) -> str:
 
 
 _LOOKUP = {_normalise(p): cmd for cmd, phrases in _COMMAND_PHRASES.items() for p in phrases}
+# Multi-word phrases may appear inside a short request ("can you read the answer
+# for me"); single words such as "stop" must be the whole utterance.
+_CONTAINED = sorted(
+    ((p, cmd) for p, cmd in _LOOKUP.items() if len(p.split()) >= 2),
+    key=lambda item: len(item[0]),
+    reverse=True,
+)
+_MAX_COMMAND_WORDS = 10
+# Words allowed around a command phrase ("can you read the answer for me now").
+# Anything else ("clear chat about bail law") means it is not a command.
+_POLITE_WORDS = frozenset(
+    [
+        "please",
+        "can",
+        "could",
+        "would",
+        "will",
+        "you",
+        "me",
+        "for",
+        "to",
+        "now",
+        "again",
+        "just",
+        "kindly",
+        "okay",
+        "ok",
+        "hey",
+        "i",
+        "want",
+        "like",
+        "it",
+        "out",
+        "loud",
+        "aloud",
+        "the",
+        "this",
+        "that",
+        "last",
+        "latest",
+        "আমাকে",
+        "একটু",
+        "প্লিজ",
+        "দয়া",
+        "অনুগ্রহ",
+        "করে",
+        "আবার",
+        "এখন",
+        "তো",
+        "শেষ",
+    ]
+)
+
+# Whisper's well-known outputs for silence / background noise.
+_HALLUCINATIONS = frozenset(
+    {
+        "thank you",
+        "thank you very much",
+        "thanks for watching",
+        "thank you for watching",
+        "you",
+        "bye",
+        "ধন্যবাদ",
+        _normalise(TRANSCRIPTION_PROMPT),  # Whisper echoing its prompt
+    }
+)
 
 
 def parse_voice_command(transcript: str) -> VoiceCommand | None:
-    """Return a command only when the WHOLE utterance is a command phrase."""
-    return _LOOKUP.get(_normalise(transcript))
+    """Recognise a command phrase.
+
+    Exact match first; otherwise a multi-word command phrase surrounded only by
+    politeness words ("could you read the answer for me" → READ_ANSWER), so a
+    real question that merely contains a phrase ("clear chat about bail law")
+    is still asked as a question.
+    """
+    text = _normalise(transcript)
+    exact = _LOOKUP.get(text)
+    if exact is not None:
+        return exact
+    if not text or len(text.split()) > _MAX_COMMAND_WORDS:
+        return None
+    padded = f" {text} "
+    for phrase, cmd in _CONTAINED:
+        if f" {phrase} " in padded:
+            leftover = padded.replace(f" {phrase} ", " ", 1).split()
+            if all(word in _POLITE_WORDS for word in leftover):
+                return cmd
+    return None
 
 
 def resolve_input(typed: str, transcript: str = "") -> tuple[VoiceCommand | None, str]:
@@ -170,45 +254,95 @@ def transcribe(
     result = with_retry(lambda: client.audio.transcriptions.create(**params))
     text = getattr(result, "text", result if isinstance(result, str) else "")
     text = " ".join(str(text).split())
-    if not text:
+    if not text or _normalise(text) in _HALLUCINATIONS:
         raise VoiceError("No speech was detected. Please speak clearly and try again.")
     return text
 
 
 def _plain_text_for_speech(markdown: str) -> str:
     text = re.sub(r"\[\d{1,2}\]", "", markdown)  # citation markers
-    text = re.sub(r"[*_`#>|]+", " ", text)
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)  # links → label
+    text = re.sub(r"[*_`#>|]+", " ", text)
     return " ".join(text.split())
 
 
-def speech_html(text: str, language: str | None = None, *, stop_only: bool = False) -> str:
-    """Self-contained HTML/JS snippet that speaks *text* via the Web Speech API.
+def speech_chunks(text: str, limit: int = 180) -> list[str]:
+    """Split text into sentence-sized pieces.
 
-    The text is embedded with ``json.dumps`` (and ``</`` escaped), so answer
-    content can never break out of the script.
+    Chrome silently stops a single utterance after ~15 seconds, so long answers
+    are queued as several short utterances instead.
     """
+    pieces: list[str] = []
+    for sentence in re.split(r"(?<=[.!?।;:])\s+", text):
+        sentence = sentence.strip()
+        while len(sentence) > limit:
+            cut = sentence.rfind(" ", 0, limit)
+            cut = cut if cut > limit // 3 else limit
+            pieces.append(sentence[:cut].strip())
+            sentence = sentence[cut:].strip()
+        if sentence:
+            pieces.append(sentence)
+    return pieces
+
+
+def speech_html(text: str, language: str | None = None, *, stop_only: bool = False, nonce: str = "") -> str:
+    """HTML/JS snippet that speaks *text* with the browser's Web Speech API.
+
+    Meant for ``st.html(..., unsafe_allow_javascript=True)`` (runs in the page
+    itself, no iframe). ``nonce`` makes every call unique so Streamlit re-runs
+    the script even when the same answer is read twice. The text is embedded
+    with ``json.dumps`` (and ``</`` escaped), so answer content can never break
+    out of the script.
+    """
+    tag = re.sub(r"[^A-Za-z0-9_-]", "", nonce)[:40]
     if stop_only:
-        return "<script>try{window.parent.speechSynthesis.cancel()}catch(e){}</script>"
-    spoken = _plain_text_for_speech(text)[:4000]
+        return f'<script data-nonce="{tag}">try{{window.speechSynthesis.cancel()}}catch(e){{}}</script>'
+    spoken = _plain_text_for_speech(text)[:6000]
     lang = language or detect_language(spoken)
     bcp47 = "bn-BD" if lang == "bn" else "en-US"
-    payload = json.dumps(spoken).replace("</", "<\\/")
-    return f"""<script>
+    payload = json.dumps(speech_chunks(spoken), ensure_ascii=False).replace("</", "<\\/")
+    note_id = f"tts-note-{tag or 'x'}"
+    missing = (
+        "আপনার ব্রাউজারে বাংলা ভয়েস নেই, তাই উত্তরটি পড়ে শোনানো যাচ্ছে না। "
+        "Your browser has no Bangla voice. Try Chrome or Edge, or install a Bangla voice in your OS settings."
+        if lang == "bn"
+        else "Your browser does not support reading answers aloud."
+    )
+    return f"""<div id="{note_id}" style="display:none;font-size:0.85rem;opacity:0.8">🔇 {missing}</div>
+<script data-nonce="{tag}">
 (function() {{
+  var note = document.getElementById("{note_id}");
+  function fail() {{ if (note) note.style.display = "block"; }}
   try {{
-    var synth = window.parent.speechSynthesis || window.speechSynthesis;
-    var Utter = window.parent.SpeechSynthesisUtterance || window.SpeechSynthesisUtterance;
-    if (!synth || !Utter) return;
-    synth.cancel();
-    var u = new Utter({payload});
-    u.lang = "{bcp47}";
-    var voices = synth.getVoices() || [];
-    var prefix = "{bcp47[:2]}";
-    for (var i = 0; i < voices.length; i++) {{
-      if ((voices[i].lang || "").toLowerCase().indexOf(prefix) === 0) {{ u.voice = voices[i]; break; }}
+    var synth = window.speechSynthesis;
+    if (!synth || !window.SpeechSynthesisUtterance) {{ fail(); return; }}
+    var parts = {payload};
+    var started = false;
+    function speak() {{
+      if (started) return;
+      started = true;
+      var voices = synth.getVoices() || [];
+      var prefix = "{bcp47[:2]}";
+      var voice = null;
+      for (var i = 0; i < voices.length; i++) {{
+        var vlang = (voices[i].lang || "").toLowerCase().replace("_", "-");
+        if (vlang.indexOf(prefix) === 0) {{ voice = voices[i]; break; }}
+      }}
+      if (!voice && prefix === "bn") {{ fail(); return; }}
+      synth.cancel();
+      for (var j = 0; j < parts.length; j++) {{
+        var u = new SpeechSynthesisUtterance(parts[j]);
+        u.lang = "{bcp47}";
+        if (voice) u.voice = voice;
+        synth.speak(u);
+      }}
+      if (synth.paused) synth.resume();
     }}
-    synth.speak(u);
-  }} catch (e) {{}}
+    if ((synth.getVoices() || []).length) {{ speak(); }}
+    else {{
+      synth.addEventListener("voiceschanged", speak, {{ once: true }});
+      setTimeout(speak, 1500);  // some browsers never fire voiceschanged
+    }}
+  }} catch (e) {{ fail(); }}
 }})();
 </script>"""

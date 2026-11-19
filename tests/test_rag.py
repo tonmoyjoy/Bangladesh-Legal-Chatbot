@@ -151,3 +151,60 @@ def test_overlong_or_empty_question_is_rejected_not_truncated(make_llm):
     with pytest.raises(InvalidQuestionError, match="question"):
         pipeline.prepare("   ", [], make_llm("ok"), top_k=1)
     assert retriever.queries == []  # nothing was retrieved or sent
+
+
+# ── Bangla questions are also searched in English ───────────────────────────
+class QueryRetriever:
+    """Returns a different document depending on the query language."""
+
+    def __init__(self):
+        self.queries = []
+
+    def retrieve(self, query, k):
+        self.queries.append(query)
+        if "bail" in query.lower():
+            return [Document(page_content="Section 497 bail", metadata={"chunk_id": "bail"})]
+        return [murder_doc()]
+
+
+def test_bangla_question_also_searched_in_english(make_llm):
+    retriever = QueryRetriever()
+    pipeline = RagPipeline(retriever, translate_queries=True)
+    llm = make_llm("When can bail be granted?", "উত্তর [1][2]।")
+    result = pipeline.answer("জামিন কখন পাওয়া যায়?", [], llm, top_k=5)
+    assert retriever.queries == ["জামিন কখন পাওয়া যায়?", "When can bail be granted?"]
+    assert result.sources[0].page_content == "Section 497 bail"  # English results lead
+    assert len(result.sources) == 2
+    assert "QUESTION (Bangla):\nজামিন কখন পাওয়া যায়?" in llm.seen[1]  # answer uses the original
+
+
+def test_english_question_is_not_translated(make_llm):
+    retriever = QueryRetriever()
+    pipeline = RagPipeline(retriever, translate_queries=True)
+    llm = make_llm("Death [1].")
+    pipeline.answer("Punishment for murder?", [], llm, top_k=5)
+    assert retriever.queries == ["Punishment for murder?"] and len(llm.seen) == 1
+
+
+def test_unusable_translation_falls_back_to_bangla_search(make_llm):
+    retriever = QueryRetriever()
+    pipeline = RagPipeline(retriever, translate_queries=True)
+    llm = make_llm("খুনের শাস্তি", "মৃত্যুদণ্ড [1]।")  # "translation" came back in Bangla
+    result = pipeline.answer("খুনের শাস্তি কী?", [], llm, top_k=5)
+    assert retriever.queries == ["খুনের শাস্তি কী?"] and len(result.sources) == 1
+
+
+def test_bangla_question_with_section_number_keeps_bangla_results_first(make_llm):
+    retriever = QueryRetriever()
+    pipeline = RagPipeline(retriever, translate_queries=True)
+    llm = make_llm("Section 302 bail", "উত্তর [1]।")
+    result = pipeline.answer("৩০২ ধারায় কী আছে?", [], llm, top_k=5)
+    assert result.sources[0].metadata["section"] == "302"
+
+
+def test_gpt_oss_citation_style_is_normalised():
+    from legalbot.citations import validate_citations
+
+    result = validate_citations("Theft is punishable【1】. Also【2†L1-L4】 and 【9†source】.", n_sources=2)
+    assert result.text == "Theft is punishable[1]. Also[2] and." and result.cited == [1, 2]
+    assert result.invalid == [9]

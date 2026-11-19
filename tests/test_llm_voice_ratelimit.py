@@ -15,6 +15,7 @@ from legalbot.voice import (
     VoiceError,
     parse_voice_command,
     resolve_input,
+    speech_chunks,
     speech_html,
     transcribe,
 )
@@ -135,6 +136,11 @@ def test_sliding_window_limiter():
         ("What is the punishment for theft?", None),
         ("How can I stop my husband from marrying again?", None),
         ("clear chat about bail law", None),
+        ("Can you read the answer for me?", VoiceCommand.READ_ANSWER),
+        ("Could you please clear the chat now", VoiceCommand.CLEAR_CHAT),
+        ("আমাকে উত্তর পড়ে শোনাও", VoiceCommand.READ_ANSWER),
+        ("show sources for section 302", None),
+        ("read the answer to the bail question", None),
         ("", None),
     ],
 )
@@ -204,6 +210,30 @@ def test_speech_html_is_injection_safe_and_language_aware():
     assert 'u.lang = "en-US"' in html
     bn = speech_html("খুনের শাস্তি মৃত্যুদণ্ড [1]।")
     assert 'u.lang = "bn-BD"' in bn
-    payload = bn.split("new Utter(")[1].split(");")[0]
-    assert json.loads(payload) == "খুনের শাস্তি মৃত্যুদণ্ড ।"
+    payload = bn.split("var parts = ")[1].split(";\n")[0]
+    assert json.loads(payload) == ["খুনের শাস্তি মৃত্যুদণ্ড ।"]
+    assert "বাংলা ভয়েস নেই" in bn  # shown when the browser has no Bangla voice
     assert "cancel()" in speech_html("", stop_only=True)
+    # a fresh nonce makes repeated calls distinct, so Streamlit re-runs the script
+    assert speech_html("same", "en", nonce="a") != speech_html("same", "en", nonce="b")
+    assert 'data-nonce="ab"' in speech_html("x", "en", nonce="a<b")
+
+
+def test_speech_chunks_split_long_text():
+    long = "Section 379. " + "word " * 100 + "end."
+    parts = speech_chunks(long, limit=60)
+    assert parts[0] == "Section 379."
+    assert all(len(p) <= 60 for p in parts)
+    assert " ".join(parts).split() == long.split()
+
+
+def test_whisper_silence_hallucination_is_rejected():
+    class Client:
+        class audio:
+            class transcriptions:
+                @staticmethod
+                def create(**kwargs):
+                    return type("R", (), {"text": " Thank you. "})()
+
+    with pytest.raises(VoiceError, match="No speech"):
+        transcribe(b"x", api_key="k", client=Client)

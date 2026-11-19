@@ -48,7 +48,7 @@ def build_backend(settings: Settings) -> Backend:
     reranker = build_reranker(settings)
     retriever = HybridRetriever(store, corpus, reranker=reranker, candidate_k=settings.candidate_k)
     return Backend(
-        pipeline=RagPipeline(retriever, history_turns=settings.history_turns),
+        pipeline=RagPipeline(retriever, history_turns=settings.history_turns, translate_queries=True),
         chunk_count=len(corpus),
         embedding_model=settings.embedding_model,
         reranker_model=settings.reranker_model if reranker is not None else "",

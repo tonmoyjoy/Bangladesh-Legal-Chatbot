@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from typing import Any
 
 from langchain_core.documents import Document
@@ -32,8 +33,10 @@ from legalbot.prompts import (
     REFUSAL_BN,
     REFUSAL_EN,
     SYSTEM_PROMPT,
+    TRANSLATE_SYSTEM,
+    TRANSLATE_TEMPLATE,
 )
-from legalbot.retrieval import Retriever
+from legalbot.retrieval import Retriever, explicit_references
 from legalbot.text import detect_language
 
 logger = logging.getLogger(__name__)
@@ -109,9 +112,16 @@ def refusal_for(language: str) -> str:
 
 
 class RagPipeline:
-    def __init__(self, retriever: Retriever, history_turns: int = 4) -> None:
+    def __init__(
+        self, retriever: Retriever, history_turns: int = 4, *, translate_queries: bool = False
+    ) -> None:
         self.retriever = retriever
         self.history_turns = history_turns
+        # The statutes are English: Bangla questions are also searched in English.
+        self.translate_queries = translate_queries
+        self._translate_prompt = ChatPromptTemplate.from_messages(
+            [("system", TRANSLATE_SYSTEM), ("human", TRANSLATE_TEMPLATE)]
+        )
         self._answer_prompt = ChatPromptTemplate.from_messages(
             [("system", SYSTEM_PROMPT), ("human", ANSWER_TEMPLATE)]
         )
@@ -145,6 +155,48 @@ class RagPipeline:
             return question
         return rewritten
 
+    def english_query(self, question: str, llm: BaseChatModel | LLMRunner) -> str:
+        """English search query for a Bangla question ("" when unavailable)."""
+
+        def call(model: BaseChatModel) -> str:
+            chain: Any = self._translate_prompt | model | StrOutputParser()
+            return str(chain.invoke({"question": question}))
+
+        try:
+            english = as_runner(llm).invoke(call).strip().strip('"')
+        except Exception as exc:  # search still works with the Bangla query alone
+            logger.warning("Query translation skipped (%s)", type(exc).__name__)
+            return ""
+        if not english or len(english) > 3 * len(question) + 300 or detect_language(english) == "bn":
+            return ""
+        return english
+
+    def retrieve(
+        self, standalone: str, language: str, llm: BaseChatModel | LLMRunner, top_k: int
+    ) -> list[Document]:
+        docs = self.retriever.retrieve(standalone, top_k)
+        if not (self.translate_queries and language == "bn"):
+            return docs
+        english = self.english_query(standalone, llm)
+        if not english:
+            return docs
+        # Interleave both result lists. The English search matches the English
+        # statutes far better, so it leads — unless the question names a
+        # section/article, which the Bangla search already pins exactly.
+        english_docs = self.retriever.retrieve(english, top_k)
+        first, second = (docs, english_docs) if explicit_references(standalone) else (english_docs, docs)
+        merged: list[Document] = []
+        seen: set[str] = set()
+        for pair in zip_longest(first, second):
+            for doc in pair:
+                if doc is None:
+                    continue
+                key = str(doc.metadata.get("chunk_id") or doc.page_content)
+                if key not in seen:
+                    seen.add(key)
+                    merged.append(doc)
+        return merged[:top_k]
+
     def prepare(
         self, question: str, history: Sequence[Turn], llm: BaseChatModel | LLMRunner, top_k: int
     ) -> PreparedQuery:
@@ -158,7 +210,7 @@ class RagPipeline:
             )
         language = detect_language(question)
         standalone = self.condense(question, history, llm)
-        docs = self.retriever.retrieve(standalone, top_k)
+        docs = self.retrieve(standalone, language, llm, top_k)
         return PreparedQuery(
             question=question,
             standalone=standalone,

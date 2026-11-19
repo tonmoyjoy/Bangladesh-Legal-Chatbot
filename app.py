@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import logging
 import math
+import uuid
 from dataclasses import replace
 from typing import Any
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="বাংলাদেশ আইন সহায়তা | Bangladesh Legal Aid",
@@ -164,7 +164,11 @@ def flash(message: str) -> None:
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 def speak(text: str, language: str | None = None, *, stop: bool = False) -> None:
-    components.html(voice.speech_html(text, language, stop_only=stop), height=0)
+    """Read *text* aloud in the browser. A fresh nonce makes the script run every time."""
+    st.html(
+        voice.speech_html(text, language, stop_only=stop, nonce=uuid.uuid4().hex),
+        unsafe_allow_javascript=True,
+    )
 
 
 def render_sources(sources: list[dict[str, Any]], cited: list[int]) -> None:
@@ -376,6 +380,20 @@ def transcribe_audio(audio: Any, settings: Settings) -> str | None:
     return transcript
 
 
+def process_submission(typed: str, audio: Any, settings: Settings, backend: services.Backend) -> None:
+    """Typed text and/or a recording → a voice command or a question."""
+    transcript = ""
+    if audio is not None:
+        transcript = transcribe_audio(audio, settings) or ""
+        if not transcript and not typed.strip():
+            return
+    command, question = voice.resolve_input(typed, transcript)
+    if command is not None:
+        run_command(command)
+    elif question:
+        handle_question(question, settings, backend, via_voice=audio is not None)
+
+
 # ── page ──────────────────────────────────────────────────────────────────────
 def render_sidebar(settings: Settings, status: vectorstore.IndexStatus) -> None:
     with st.sidebar:
@@ -404,6 +422,13 @@ def render_sidebar(settings: Settings, status: vectorstore.IndexStatus) -> None:
             key="voice_language",
         )
         st.toggle("Read answers aloud", key="read_aloud")
+        st.audio_input(
+            "Or record a question here",
+            key="sidebar_audio",
+            sample_rate=16000,
+            help="Use this if the 🎙️ button in the chat box does not work in your browser. "
+            "Allow microphone access when the browser asks.",
+        )
         with st.expander("Voice commands"):
             st.markdown(VOICE_HELP)
 
@@ -501,16 +526,13 @@ def main() -> None:
     if submission is not None:
         typed = submission if isinstance(submission, str) else str(getattr(submission, "text", "") or "")
         audio = None if isinstance(submission, str) else getattr(submission, "audio", None)
-        transcript = ""
-        if audio is not None:
-            transcript = transcribe_audio(audio, settings) or ""
-            if not transcript and not typed.strip():
-                return
-        command, question = voice.resolve_input(typed, transcript)
-        if command is not None:
-            run_command(command)
-        elif question:
-            handle_question(question, settings, backend, via_voice=audio is not None)
+        process_submission(typed, audio, settings, backend)
+
+    # The sidebar recorder keeps its value across reruns: handle each recording once.
+    recording = st.session_state.get("sidebar_audio")
+    if recording is not None and recording.file_id != st.session_state.get("last_sidebar_audio"):
+        st.session_state["last_sidebar_audio"] = recording.file_id
+        process_submission("", recording, settings, backend)
 
     st.caption(
         "⚖️ General legal information for education only — not a substitute for advice from a "
